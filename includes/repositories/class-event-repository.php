@@ -79,6 +79,16 @@ class Event_Repository {
 		$wpdb->query( $wpdb->prepare( "UPDATE {$this->table} SET attempts = attempts + 1, updated_at = %s WHERE id = %d", current_time( 'mysql', true ), $id ) );
 	}
 
+	public function update( int $id, array $data ) {
+		global $wpdb;
+		$data['updated_at'] = current_time( 'mysql', true );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$result = $wpdb->update( $this->table, $data, array( 'id' => $id ) );
+		return false === $result
+			? new \WP_Error( 'hmp_event_update_failed', __( 'Could not update the webhook event.', 'hotmart-memberpress-pro' ) )
+			: true;
+	}
+
 	public function counts_by_status(): array {
 		global $wpdb;
 		$counts = array_fill_keys( array( 'received', 'processed', 'failed', 'ignored' ), 0 );
@@ -94,5 +104,70 @@ class Event_Repository {
 		global $wpdb;
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$this->table} ORDER BY received_at DESC, id DESC LIMIT %d", $limit ) );
+	}
+
+	public function query( array $args = array() ): array {
+		global $wpdb;
+		$args   = wp_parse_args(
+			$args,
+			array(
+				'status' => '',
+				'event'  => '',
+				'search' => '',
+				'limit'  => 50,
+				'offset' => 0,
+			)
+		);
+		$where  = array( '1=1' );
+		$values = array();
+		if ( $args['status'] ) {
+			$where[]  = 'status = %s';
+			$values[] = $args['status'];
+		}
+		if ( $args['event'] ) {
+			$where[]  = 'hotmart_event = %s';
+			$values[] = $args['event'];
+		}
+		if ( $args['search'] ) {
+			$like     = '%' . $wpdb->esc_like( $args['search'] ) . '%';
+			$where[]  = '(buyer_email LIKE %s OR transaction_code LIKE %s)';
+			$values[] = $like;
+			$values[] = $like;
+		}
+		$values[] = max( 1, min( 200, (int) $args['limit'] ) );
+		$values[] = max( 0, (int) $args['offset'] );
+		$sql      = "SELECT * FROM {$this->table} WHERE " . implode( ' AND ', $where ) . ' ORDER BY received_at DESC, id DESC LIMIT %d OFFSET %d';
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		return $wpdb->get_results( $wpdb->prepare( $sql, $values ) );
+	}
+
+	public function count( array $args = array() ): int {
+		global $wpdb;
+		$args   = wp_parse_args( $args, array( 'status' => '', 'event' => '', 'search' => '' ) );
+		$where  = array( '1=1' );
+		$values = array();
+		if ( $args['status'] ) {
+			$where[]  = 'status = %s';
+			$values[] = $args['status'];
+		}
+		if ( $args['event'] ) {
+			$where[]  = 'hotmart_event = %s';
+			$values[] = $args['event'];
+		}
+		if ( $args['search'] ) {
+			$like     = '%' . $wpdb->esc_like( $args['search'] ) . '%';
+			$where[]  = '(buyer_email LIKE %s OR transaction_code LIKE %s)';
+			$values[] = $like;
+			$values[] = $like;
+		}
+		$sql = "SELECT COUNT(*) FROM {$this->table} WHERE " . implode( ' AND ', $where );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		return (int) ( $values ? $wpdb->get_var( $wpdb->prepare( $sql, $values ) ) : $wpdb->get_var( $sql ) );
+	}
+
+	public function event_names(): array {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		return $wpdb->get_col( "SELECT DISTINCT hotmart_event FROM {$this->table} WHERE hotmart_event <> '' ORDER BY hotmart_event ASC" );
 	}
 }

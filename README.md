@@ -3,13 +3,17 @@
 WordPress plugin that securely receives Hotmart webhooks and grants MemberPress
 membership access.
 
-Version 0.1.0 includes:
+Version 0.2.0 includes:
 
 - `POST /wp-json/hmp/v1/webhook`
 - HOTTOK authentication and deterministic idempotency
 - Event, activation and mapping tables
 - `PURCHASE_APPROVED` and `PURCHASE_COMPLETE` processing
 - Basic administration, settings and retention cleanup
+- Mapping creation, editing, activation and deletion
+- Webhook history, filters, payload inspection and failed-event reprocessing
+- Activation history with manual revoke/reactivate controls
+- Refund, chargeback, cancellation and expiration lifecycle handling
 
 ## Requirements
 

@@ -61,10 +61,6 @@ class Mapping_Repository {
 		return $wpdb->get_row( $sql );
 	}
 
-	public function find_by_transaction( string $transaction ): ?object {
-		return null;
-	}
-
 	public function exists( int $id ): bool {
 		return null !== $this->find_by_id( $id );
 	}
@@ -77,5 +73,30 @@ class Mapping_Repository {
 		return false === $result
 			? new \WP_Error( 'hmp_mapping_update_failed', __( 'Could not update the mapping.', 'hotmart-memberpress-pro' ) )
 			: true;
+	}
+
+	public function update( int $id, array $data ) {
+		global $wpdb;
+		$data['updated_at'] = current_time( 'mysql', true );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$result = $wpdb->update( $this->table, $data, array( 'id' => $id ) );
+		return false === $result
+			? new \WP_Error( 'hmp_mapping_update_failed', __( 'Could not update the mapping.', 'hotmart-memberpress-pro' ) )
+			: true;
+	}
+
+	public function delete( int $id ) {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$result = $wpdb->delete( $this->table, array( 'id' => $id ) );
+		return false === $result
+			? new \WP_Error( 'hmp_mapping_delete_failed', __( 'Could not delete the mapping.', 'hotmart-memberpress-pro' ) )
+			: true;
+	}
+
+	public function all(): array {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		return $wpdb->get_results( "SELECT * FROM {$this->table} ORDER BY priority ASC, id ASC" );
 	}
 }

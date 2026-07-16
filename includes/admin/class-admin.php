@@ -2,7 +2,12 @@
 namespace HMP\Admin;
 
 use HMP\Repositories\Event_Repository;
+use HMP\Repositories\Activation_Repository;
+use HMP\Repositories\Mapping_Repository;
+use HMP\Events\Event_Processor;
+use HMP\MemberPress\Revocation_Service;
 use HMP\Settings;
+use HMP\Webhook\Payload_Normalizer;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -10,13 +15,29 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Admin {
 	private Event_Repository $events;
+	private Mappings $mappings_page;
+	private Webhooks $webhooks_page;
+	private Activations $activations_page;
 
-	public function __construct( Event_Repository $events ) {
+	public function __construct(
+		Event_Repository $events,
+		Mapping_Repository $mappings,
+		Activation_Repository $activations,
+		Event_Processor $processor,
+		Payload_Normalizer $normalizer,
+		Revocation_Service $revocations
+	) {
 		$this->events = $events;
+		$this->mappings_page   = new Mappings( $mappings );
+		$this->webhooks_page   = new Webhooks( $events, $processor, $normalizer );
+		$this->activations_page = new Activations( $activations, $revocations );
 	}
 
 	public function register(): void {
 		add_action( 'admin_menu', array( $this, 'menu' ) );
+		$this->mappings_page->register();
+		$this->webhooks_page->register();
+		$this->activations_page->register();
 	}
 
 	public function menu(): void {
@@ -29,6 +50,9 @@ class Admin {
 			'dashicons-rest-api'
 		);
 		add_submenu_page( 'hotmart-memberpress-pro', __( 'Overview', 'hotmart-memberpress-pro' ), __( 'Overview', 'hotmart-memberpress-pro' ), 'manage_options', 'hotmart-memberpress-pro', array( $this, 'overview' ) );
+		add_submenu_page( 'hotmart-memberpress-pro', __( 'Mappings', 'hotmart-memberpress-pro' ), __( 'Mappings', 'hotmart-memberpress-pro' ), 'manage_options', 'hotmart-memberpress-pro-mappings', array( $this->mappings_page, 'render' ) );
+		add_submenu_page( 'hotmart-memberpress-pro', __( 'Webhooks', 'hotmart-memberpress-pro' ), __( 'Webhooks', 'hotmart-memberpress-pro' ), 'manage_options', 'hotmart-memberpress-pro-webhooks', array( $this->webhooks_page, 'render' ) );
+		add_submenu_page( 'hotmart-memberpress-pro', __( 'Activations', 'hotmart-memberpress-pro' ), __( 'Activations', 'hotmart-memberpress-pro' ), 'manage_options', 'hotmart-memberpress-pro-activations', array( $this->activations_page, 'render' ) );
 		add_submenu_page( 'hotmart-memberpress-pro', __( 'Settings', 'hotmart-memberpress-pro' ), __( 'Settings', 'hotmart-memberpress-pro' ), 'manage_options', 'hotmart-memberpress-pro-settings', array( $this, 'settings' ) );
 	}
 

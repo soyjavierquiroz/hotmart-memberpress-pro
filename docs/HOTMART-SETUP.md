@@ -5,7 +5,7 @@
 3. Open **Hotmart MemberPress > Overview** and copy the complete webhook URL.
 4. In Hotmart, create a webhook using that URL and the exact same HOTTOK.
 5. Subscribe at least to `PURCHASE_APPROVED` and `PURCHASE_COMPLETE`.
-6. Create an active row in the WordPress `{prefix}hmp_mappings` table.
+6. Open **Hotmart MemberPress > Mappings** and create an active mapping.
 
 Mappings are matched in this order:
 
@@ -19,3 +19,6 @@ Within the same match level, the lowest `priority` value wins.
 The endpoint accepts JSON only. Authentication failures return HTTP 401 and malformed
 JSON returns HTTP 400. Once an event has been stored, processing failures return HTTP
 200 to avoid aggressive retries; the event remains visible with status `failed`.
+
+Failed events can be reprocessed under **Hotmart MemberPress > Webhooks** after fixing
+the mapping or MemberPress configuration.

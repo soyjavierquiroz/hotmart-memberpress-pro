@@ -11,6 +11,8 @@ Webhook flow:
 4. `Event_Repository` persists the original JSON outside public files.
 5. `Event_Processor` routes supported event names.
 6. `MemberPress_Service` resolves a mapping, user, transaction and activation.
+7. `Revocation_Service` is the only service that expires, refunds, revokes, cancels or
+   reactivates access.
 
 The plugin owns three tables:
 
@@ -20,6 +22,28 @@ The plugin owns three tables:
 
 MemberPress classes are referenced only after `class_exists()` checks. This allows the
 plugin to activate and store a clear failed state when MemberPress is unavailable.
+
+## Administration
+
+Administration is split into small page controllers:
+
+- `Mappings` owns mapping CRUD and MemberPress membership selection.
+- `Webhooks` owns filtering, payload inspection, ignored status and safe reprocessing.
+- `Activations` owns filtering and manual revoke/reactivate actions.
+
+All state-changing actions require `manage_options` and an action-specific nonce.
+Manual activation actions are stored with action name, UTC date and result.
+
+## Revocation lifecycle
+
+The revocation service first resolves one exact activation using the Hotmart transaction
+and, when available, subscription/product/offer/plan identifiers. Ambiguous matches fail
+without changing access. It never deletes a user or modifies unrelated transactions.
+
+Refunds and chargebacks mark the related MemberPress transaction refunded and expire it.
+Purchase cancellation/expiration expires only the related transaction. Subscription
+cancellation marks the activation canceled while preserving paid access through its
+existing `expires_at`.
 
 The daily cleanup removes old `processed` and `ignored` events according to retention.
 Activations are never removed by cleanup. Uninstall is non-destructive unless

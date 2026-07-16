@@ -37,6 +37,14 @@ class MemberPress_Service {
 			return new \WP_Error( 'hmp_missing_transaction', __( 'The purchase does not contain a transaction code.', 'hotmart-memberpress-pro' ) );
 		}
 
+		$subscription = sanitize_text_field( (string) ( $payload['subscription'] ?? '' ) );
+		if ( '' !== $subscription ) {
+			$latest = $this->activations->find_latest_by_subscription( $subscription );
+			if ( $latest && 'canceled' === $latest->status && $latest->hotmart_transaction !== $transaction ) {
+				return new \WP_Error( 'hmp_subscription_canceled', __( 'This Hotmart subscription was canceled and cannot create future renewals.', 'hotmart-memberpress-pro' ) );
+			}
+		}
+
 		$user = get_user_by( 'email', $email );
 		if ( ! $user ) {
 			$user = $this->create_user( $email, $payload );

@@ -53,6 +53,9 @@ final class Activator {
 				expires_at datetime NULL,
 				revoked_at datetime NULL,
 				revocation_reason varchar(191) NULL,
+				manual_action varchar(30) NULL,
+				manual_action_at datetime NULL,
+				manual_action_result text NULL,
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (id),
@@ -95,6 +98,12 @@ final class Activator {
 		update_option( 'hmp_db_version', HMP_VERSION );
 		Settings::add_defaults();
 		Cleanup::schedule();
+	}
+
+	public static function maybe_upgrade(): void {
+		if ( HMP_VERSION !== get_option( 'hmp_db_version' ) ) {
+			self::activate();
+		}
 	}
 
 	public static function deactivate(): void {
