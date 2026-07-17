@@ -12,6 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class Lifecycle {
 	public const GRACE_HOOK = 'hmp_process_grace_expirations';
 	public const RETRY_HOOK = 'hmp_retry_failed_events';
+	private const GRACE_LOCK = 'hmp_grace_cron_lock';
 	private static ?Event_Repository $events = null;
 	private static ?Activation_Repository $activations = null;
 	private static ?Event_Processor $processor = null;
@@ -40,12 +41,17 @@ final class Lifecycle {
 
 	public static function process_grace(): int {
 		if ( ! self::$activations || ! self::$revocations ) return 0;
+		if ( get_transient( self::GRACE_LOCK ) ) return 0;
+		set_transient( self::GRACE_LOCK, 1, 10 * MINUTE_IN_SECONDS );
 		$count = 0;
-		foreach ( self::$activations->find_grace_expired( 100 ) as $row ) {
-			$result = self::$revocations->expire_grace( (int) $row->id );
-			if ( ! is_wp_error( $result ) ) ++$count;
-		}
-		return $count;
+		try {
+			foreach ( self::$activations->find_grace_expired( 50 ) as $row ) {
+				$result = self::$revocations->expire_grace( (int) $row->id );
+				if ( ! is_wp_error( $result ) ) ++$count;
+			}
+			update_option( 'hmp_last_grace_cron', array( 'at'=>current_time( 'mysql', true ), 'processed'=>$count ), false );
+			return $count;
+		} finally { delete_transient( self::GRACE_LOCK ); }
 	}
 
 	public static function retry_failed(): int {

@@ -15,6 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Admin {
 	private Event_Repository $events;
+	private Activation_Repository $activation_repository;
 	private Mappings $mappings_page;
 	private Webhooks $webhooks_page;
 	private Activations $activations_page;
@@ -29,9 +30,10 @@ class Admin {
 		Revocation_Service $revocations
 	) {
 		$this->events = $events;
+		$this->activation_repository = $activations;
 		$this->mappings_page   = new Mappings( $mappings );
 		$this->webhooks_page   = new Webhooks( $events, $processor, $normalizer );
-		$this->activations_page = new Activations( $activations, $revocations );
+		$this->activations_page = new Activations( $activations, $revocations, $events );
 		$this->tools_page = new Tools( $events, $mappings, $activations, $processor, $normalizer, $revocations );
 	}
 
@@ -66,6 +68,9 @@ class Admin {
 		}
 		$counts = $this->events->counts_by_status();
 		$latest = $this->events->latest();
+		$operations = $this->activation_repository->operational_counts();
+		$last_cron = get_option( 'hmp_last_grace_cron', array() );
+		$recent_errors = $this->events->query( array( 'status'=>'failed', 'limit'=>5 ) );
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Hotmart MemberPress Overview', 'hotmart-memberpress-pro' ); ?></h1>
@@ -78,6 +83,7 @@ class Admin {
 				</tbody>
 			</table>
 			<h2><?php esc_html_e( 'Event totals', 'hotmart-memberpress-pro' ); ?></h2>
+			<table class="widefat striped" style="max-width:900px"><tbody><tr><th><?php esc_html_e('Delayed payments','hotmart-memberpress-pro');?></th><td><?php echo esc_html($operations['payment_delayed']);?></td></tr><tr><th><?php esc_html_e('Active grace periods','hotmart-memberpress-pro');?></th><td><?php echo esc_html($operations['grace']);?></td></tr><tr><th><?php esc_html_e('Refund requests','hotmart-memberpress-pro');?></th><td><?php echo esc_html($operations['refund_requested']);?></td></tr><tr><th><?php esc_html_e('Require review','hotmart-memberpress-pro');?></th><td><?php echo esc_html($operations['review']);?></td></tr><tr><th><?php esc_html_e('Last grace cron','hotmart-memberpress-pro');?></th><td><?php echo esc_html(!empty($last_cron['at'])?$last_cron['at'].' · '.absint($last_cron['processed']).' processed':'—');?></td></tr><tr><th><?php esc_html_e('Recent errors','hotmart-memberpress-pro');?></th><td><?php echo esc_html(count($recent_errors));?></td></tr></tbody></table>
 			<ul>
 				<?php
 				$labels = array(

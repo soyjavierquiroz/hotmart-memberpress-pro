@@ -179,6 +179,15 @@ class Event_Repository {
 		return false === $result ? 0 : (int) $result;
 	}
 
+	public function record_audit( string $action, array $data ) {
+		$context = array(
+			'action' => sanitize_key( $action ), 'object_type' => sanitize_key( $data['object_type'] ?? '' ), 'object_id' => absint( $data['object_id'] ?? 0 ),
+			'user_id' => absint( $data['user_id'] ?? 0 ), 'admin_user_id' => get_current_user_id(), 'event_id' => absint( $data['event_id'] ?? 0 ),
+			'message' => sanitize_textarea_field( $data['message'] ?? '' ), 'reason' => sanitize_textarea_field( $data['reason'] ?? '' ), 'result' => sanitize_textarea_field( $data['result'] ?? '' ),
+		);
+		return $this->insert( array( 'event_key'=>hash('sha256','manual-audit:'.wp_generate_uuid4()), 'hotmart_event'=>'HMP_MANUAL_ACTION', 'payload'=>wp_json_encode($context), 'status'=>'processed', 'result_message'=>$context['result'], 'source'=>'manual_audit', 'processed_at'=>current_time('mysql',true) ) );
+	}
+
 	public function retryable( int $limit = 20 ): array {
 		global $wpdb;
 		$codes = array( 'hmp_memberpress_unavailable', 'hmp_memberpress_transaction_failed', 'hmp_database_error' );

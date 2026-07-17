@@ -1,4 +1,6 @@
-# Hotmart MemberPress Pro 0.3.1
+# Hotmart MemberPress Pro 0.4.0
+
+Version 0.4.0 completes daily operations for delayed and overdue payments, refund requests, subscription cancellations, locked grace expiration, manual fallback and append-only audit records. Manual actions use authenticated POST requests, require a reason, and never remove users.
 
 Version 0.3.0 adds safe subscription renewals, cancellation across paid periods, overdue-payment grace, limited transient retries, refund-request warnings and authenticated manual fallback tools. No OAuth or Hotmart API calls are used.
 

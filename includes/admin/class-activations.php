@@ -3,6 +3,7 @@ namespace HMP\Admin;
 
 use HMP\MemberPress\Revocation_Service;
 use HMP\Repositories\Activation_Repository;
+use HMP\Repositories\Event_Repository;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -11,10 +12,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Activations {
 	private Activation_Repository $activations;
 	private Revocation_Service $revocations;
+	private Event_Repository $events;
 
-	public function __construct( Activation_Repository $activations, Revocation_Service $revocations ) {
+	public function __construct( Activation_Repository $activations, Revocation_Service $revocations, Event_Repository $events ) {
 		$this->activations = $activations;
 		$this->revocations = $revocations;
+		$this->events = $events;
 	}
 
 	public function register(): void {
@@ -34,13 +37,13 @@ class Activations {
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Membership activations', 'hotmart-memberpress-pro' ); ?></h1>
 			<?php $this->notice(); ?>
-			<form method="get"><input type="hidden" name="page" value="hotmart-memberpress-pro-activations"><select name="status"><option value=""><?php esc_html_e( 'All statuses', 'hotmart-memberpress-pro' ); ?></option><?php foreach ( array( 'active', 'grace', 'canceled', 'revoked' ) as $value ) : ?><option value="<?php echo esc_attr( $value ); ?>" <?php selected( $status, $value ); ?>><?php echo esc_html( $this->status_label( $value ) ); ?></option><?php endforeach; ?></select> <input type="search" name="s" value="<?php echo esc_attr( $search ); ?>" placeholder="<?php esc_attr_e( 'Email, transaction or subscription', 'hotmart-memberpress-pro' ); ?>"> <?php submit_button( __( 'Filter', 'hotmart-memberpress-pro' ), 'secondary', '', false ); ?></form>
+			<form method="get"><input type="hidden" name="page" value="hotmart-memberpress-pro-activations"><select name="status"><option value=""><?php esc_html_e( 'All statuses', 'hotmart-memberpress-pro' ); ?></option><?php foreach ( array( 'active', 'payment_delayed', 'grace', 'refund_requested', 'review', 'canceled', 'revoked' ) as $value ) : ?><option value="<?php echo esc_attr( $value ); ?>" <?php selected( $status, $value ); ?>><?php echo esc_html( $this->status_label( $value ) ); ?></option><?php endforeach; ?></select> <input type="search" name="s" value="<?php echo esc_attr( $search ); ?>" placeholder="<?php esc_attr_e( 'Email, transaction or subscription', 'hotmart-memberpress-pro' ); ?>"> <?php submit_button( __( 'Filter', 'hotmart-memberpress-pro' ), 'secondary', '', false ); ?></form>
 			<p><?php echo esc_html( sprintf( __( '%d activations found.', 'hotmart-memberpress-pro' ), $total ) ); ?></p>
 			<table class="widefat striped"><thead><tr><th><?php esc_html_e( 'User', 'hotmart-memberpress-pro' ); ?></th><th><?php esc_html_e( 'Membership', 'hotmart-memberpress-pro' ); ?></th><th><?php esc_html_e( 'Hotmart transaction', 'hotmart-memberpress-pro' ); ?></th><th><?php esc_html_e( 'MemberPress transaction', 'hotmart-memberpress-pro' ); ?></th><th><?php esc_html_e( 'Subscription', 'hotmart-memberpress-pro' ); ?></th><th><?php esc_html_e( 'Status', 'hotmart-memberpress-pro' ); ?></th><th><?php esc_html_e( 'Start', 'hotmart-memberpress-pro' ); ?></th><th><?php esc_html_e( 'Expiration', 'hotmart-memberpress-pro' ); ?></th><th><?php esc_html_e( 'Grace until', 'hotmart-memberpress-pro' ); ?></th><th><?php esc_html_e( 'Last event', 'hotmart-memberpress-pro' ); ?></th><th><?php esc_html_e( 'Actions', 'hotmart-memberpress-pro' ); ?></th></tr></thead><tbody>
 			<?php if ( empty( $rows ) ) : ?><tr><td colspan="11"><?php esc_html_e( 'No activations match the filters.', 'hotmart-memberpress-pro' ); ?></td></tr><?php endif; ?>
 			<?php foreach ( $rows as $row ) : $user = get_user_by( 'id', $row->user_id ); ?>
 				<tr<?php echo 'PURCHASE_REFUND_REQUESTED' === $row->last_event ? ' style="background:#fff3cd"' : ''; ?>><td><?php echo esc_html( $user ? $user->user_email : '#' . $row->user_id ); ?></td><td><?php echo esc_html( get_the_title( (int) $row->membership_id ) ?: '#' . $row->membership_id ); ?></td><td><?php echo esc_html( $row->hotmart_transaction ); ?></td><td><?php echo esc_html( $row->memberpress_transaction_id ?: '—' ); ?></td><td><?php echo esc_html( $row->hotmart_subscription ?: '—' ); ?></td><td><?php echo esc_html( $this->status_label( $row->status ) ); ?></td><td><?php echo esc_html( $row->starts_at ?: '—' ); ?></td><td><?php echo esc_html( $row->expires_at ?: '—' ); ?></td><td><?php echo esc_html( $row->grace_until ?: '—' ); ?></td><td><?php echo esc_html( $row->last_event ?: '—' ); ?></td><td>
-					<?php if ( 'active' === $row->status || 'canceled' === $row->status ) : ?><a onclick="return confirm('<?php echo esc_js( __( 'Revoke only this activation?', 'hotmart-memberpress-pro' ) ); ?>')" href="<?php echo esc_url( wp_nonce_url( add_query_arg( array( 'action' => 'hmp_revoke_activation', 'activation_id' => $row->id ), admin_url( 'admin-post.php' ) ), 'hmp_revoke_activation_' . $row->id ) ); ?>"><?php esc_html_e( 'Revoke', 'hotmart-memberpress-pro' ); ?></a><?php else : ?><a href="<?php echo esc_url( wp_nonce_url( add_query_arg( array( 'action' => 'hmp_reactivate_activation', 'activation_id' => $row->id ), admin_url( 'admin-post.php' ) ), 'hmp_reactivate_activation_' . $row->id ) ); ?>"><?php esc_html_e( 'Reactivate', 'hotmart-memberpress-pro' ); ?></a><?php endif; ?>
+					<form method="post" action="<?php echo esc_url(admin_url('admin-post.php'));?>" onsubmit="return confirm('<?php echo esc_js(sprintf(__('Confirm action on activation #%d?','hotmart-memberpress-pro'),$row->id));?>')"><input type="hidden" name="action" value="<?php echo 'revoked' === $row->status?'hmp_reactivate_activation':'hmp_revoke_activation';?>"><input type="hidden" name="activation_id" value="<?php echo esc_attr($row->id);?>"><?php wp_nonce_field(('revoked'===$row->status?'hmp_reactivate_activation_':'hmp_revoke_activation_').$row->id);?><input name="reason" required placeholder="<?php esc_attr_e('Required reason','hotmart-memberpress-pro');?>"> <?php submit_button('revoked'===$row->status?__('Reactivate','hotmart-memberpress-pro'):__('Revoke','hotmart-memberpress-pro'),'small','submit',false);?></form>
 				</td></tr>
 			<?php endforeach; ?>
 			</tbody></table>
@@ -51,21 +54,26 @@ class Activations {
 
 	public function revoke(): void {
 		$this->authorize();
-		$id = absint( $_GET['activation_id'] ?? 0 );
+		$id = absint( $_POST['activation_id'] ?? 0 );
 		check_admin_referer( 'hmp_revoke_activation_' . $id );
-		$result = $this->revocations->revoke_by_id( $id, sprintf( 'manual:user:%d:%s', get_current_user_id(), current_time( 'mysql', true ) ) );
+		$reason = sanitize_textarea_field( wp_unslash( $_POST['reason'] ?? '' ) ); if ( '' === $reason ) wp_die(esc_html__('A reason is required.','hotmart-memberpress-pro'));
+		$result = $this->revocations->revoke_by_id( $id, 'manual:' . $reason );
 		$this->record_manual_action( $id, 'revoke', $result );
+		$this->audit($id,'revoke',$reason,$result);
 		$this->redirect( is_wp_error( $result ) ? 'error' : 'revoked' );
 	}
 
 	public function reactivate(): void {
 		$this->authorize();
-		$id = absint( $_GET['activation_id'] ?? 0 );
+		$id = absint( $_POST['activation_id'] ?? 0 );
 		check_admin_referer( 'hmp_reactivate_activation_' . $id );
+		$reason = sanitize_textarea_field( wp_unslash( $_POST['reason'] ?? '' ) ); if ( '' === $reason ) wp_die(esc_html__('A reason is required.','hotmart-memberpress-pro'));
 		$result = $this->revocations->reactivate_by_id( $id );
 		$this->record_manual_action( $id, 'reactivate', $result );
+		$this->audit($id,'reactivate',$reason,$result);
 		$this->redirect( is_wp_error( $result ) ? 'error' : 'reactivated' );
 	}
+	private function audit(int $id,string $action,string $reason,$result): void { $activation=$this->activations->find_by_id($id); $this->events->record_audit($action,array('object_type'=>'activation','object_id'=>$id,'user_id'=>$activation->user_id??0,'reason'=>$reason,'result'=>is_wp_error($result)?$result->get_error_message():'completed')); }
 
 	private function record_manual_action( int $id, string $action, $result ): void {
 		$activation = $this->activations->find_by_id( $id );
@@ -93,6 +101,9 @@ class Activations {
 		$labels = array(
 			'active'   => __( 'Active', 'hotmart-memberpress-pro' ),
 			'grace'    => __( 'Grace', 'hotmart-memberpress-pro' ),
+			'payment_delayed' => __( 'Payment delayed', 'hotmart-memberpress-pro' ),
+			'refund_requested' => __( 'Refund requested', 'hotmart-memberpress-pro' ),
+			'review' => __( 'Needs review', 'hotmart-memberpress-pro' ),
 			'canceled' => __( 'Canceled', 'hotmart-memberpress-pro' ),
 			'revoked'  => __( 'Revoked', 'hotmart-memberpress-pro' ),
 		);

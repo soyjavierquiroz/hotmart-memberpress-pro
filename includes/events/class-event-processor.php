@@ -32,9 +32,14 @@ class Event_Processor {
 			'PURCHASE_CANCELLED',
 			'PURCHASE_EXPIRED',
 			'SUBSCRIPTION_CANCELLATION',
+			'SUBSCRIPTION_CANCELED',
+			'SUBSCRIPTION_CANCELLED',
 		);
-		$grace_events = array( 'PURCHASE_DELAYED', 'PURCHASE_OVERDUE' );
-		if ( in_array( $event, $grace_events, true ) ) {
+		if ( 'PURCHASE_DELAYED' === $event ) {
+			$result = $this->revocations->payment_delayed( $payload, $event );
+			return $this->finish( $event_id, $result, __( 'Delayed payment recorded without revoking access.', 'hotmart-memberpress-pro' ) );
+		}
+		if ( 'PURCHASE_OVERDUE' === $event ) {
 			$result = $this->revocations->start_grace( $payload, $event );
 			return $this->finish( $event_id, $result, __( 'Subscription placed in grace period.', 'hotmart-memberpress-pro' ) );
 		}

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0
+
+- Separates delayed payments from overdue grace periods and makes grace expiration revalidate later payments.
+- Adds subscription cancellation aliases and review handling when no paid expiration is known.
+- Adds POST-only manual fallback actions with mandatory reasons and append-only operational audit events.
+- Adds hourly cron locking, 50-row batches, operational counters and cron reporting.
+
 ## 0.3.1
 
 - Automatically applies schema 0.3.0 from the WordPress web runtime without reactivation or WP-CLI.

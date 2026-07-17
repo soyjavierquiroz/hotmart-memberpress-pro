@@ -1,5 +1,7 @@
 # Architecture
 
+Version 0.4.0 keeps schema 0.3.0. Operational states live on activations, while each manual action is appended to `hmp_events` as `HMP_MANUAL_ACTION` with source `manual_audit`; this preserves complete history without another table or schema migration. The hourly grace job uses a transient lock, processes at most 50 rows, and revalidates later approved payments before touching the related MemberPress transaction.
+
 Plugin version 0.3.1 uses schema version 0.3.0. `Upgrader` is the single source for table definitions; it runs automatically during `plugins_loaded` in the WordPress web environment, uses a five-minute transient lock, verifies required columns before advancing the stored schema version, and exposes a nonce-protected manual recovery action.
 
 Version 0.3.0 keeps one activation per Hotmart transaction and derives subscription state from ordered activations. Refunds target one transaction; cancellation marks only the latest period. Native WP-Cron handles hourly grace expiration and 15-minute transient retries.

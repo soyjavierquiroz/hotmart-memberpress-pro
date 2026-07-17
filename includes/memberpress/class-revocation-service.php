@@ -23,7 +23,7 @@ class Revocation_Service {
 			return $activation;
 		}
 
-		if ( 'SUBSCRIPTION_CANCELLATION' === $event ) {
+		if ( in_array( $event, array( 'SUBSCRIPTION_CANCELLATION', 'SUBSCRIPTION_CANCELED', 'SUBSCRIPTION_CANCELLED' ), true ) ) {
 			return $this->cancel_at_period_end( $activation, $event );
 		}
 
@@ -39,15 +39,25 @@ class Revocation_Service {
 		return $this->revoke( $activation, $event, $refund );
 	}
 
+	public function payment_delayed( array $payload, string $event ) {
+		$subscription = sanitize_text_field( (string) ( $payload['subscription'] ?? '' ) );
+		$activation = $subscription ? $this->activations->find_latest_by_subscription( $subscription ) : $this->locate_activation( $payload );
+		if ( ! $activation || is_wp_error( $activation ) ) return array( 'status' => 'processed', 'activation_missing' => true );
+		if ( ! in_array( $activation->status, array( 'active', 'payment_delayed' ), true ) ) return array( 'status' => $activation->status, 'unchanged' => true );
+		$result = $this->activations->update_status( (int) $activation->id, 'payment_delayed', array( 'last_event' => $event, 'last_event_at' => current_time( 'mysql', true ) ) );
+		return is_wp_error( $result ) ? $result : array( 'status' => 'payment_delayed', 'activation_id' => (int) $activation->id );
+	}
+
 	public function start_grace( array $payload, string $event ) {
 		$subscription = sanitize_text_field( (string) ( $payload['subscription'] ?? '' ) );
 		$activation = $subscription ? $this->activations->find_latest_by_subscription( $subscription ) : $this->locate_activation( $payload );
 		if ( ! $activation || is_wp_error( $activation ) ) {
 			return array( 'status' => 'processed', 'activation_missing' => true );
 		}
-		if ( ! in_array( $activation->status, array( 'active', 'grace' ), true ) ) {
+		if ( ! in_array( $activation->status, array( 'active', 'payment_delayed', 'grace' ), true ) ) {
 			return array( 'status' => $activation->status, 'unchanged' => true );
 		}
+		if ( 'grace' === $activation->status && $event === $activation->last_event && ! empty( $activation->grace_until ) ) return array( 'status'=>'grace', 'activation_id'=>(int)$activation->id, 'unchanged'=>true );
 		$mapping = $this->mappings->find_for_payload( $payload );
 		$days = $mapping ? (int) $mapping->grace_period_days : (int) \HMP\Settings::get( 'hmp_default_grace_period_days' );
 		$now = time();
@@ -62,8 +72,8 @@ class Revocation_Service {
 		if ( is_wp_error( $activation ) ) {
 			return $activation;
 		}
-		$result = $this->activations->update_status( (int) $activation->id, (string) $activation->status, array( 'last_event' => $event, 'last_event_at' => current_time( 'mysql', true ) ) );
-		return is_wp_error( $result ) ? $result : array( 'status' => $activation->status, 'activation_id' => (int) $activation->id );
+		$result = $this->activations->update_status( (int) $activation->id, 'refund_requested', array( 'last_event' => $event, 'last_event_at' => current_time( 'mysql', true ) ) );
+		return is_wp_error( $result ) ? $result : array( 'status' => 'refund_requested', 'activation_id' => (int) $activation->id );
 	}
 
 	public function expire_grace( int $activation_id ) {
@@ -71,7 +81,11 @@ class Revocation_Service {
 		if ( ! $activation || 'grace' !== $activation->status ) {
 			return array( 'status' => $activation ? $activation->status : 'missing', 'unchanged' => true );
 		}
-		return $this->revoke( $activation, 'grace_period_expired', false );
+		if ( $this->activations->has_later_paid_activation( $activation ) ) {
+			$this->activations->update_status( (int) $activation->id, 'active', array( 'grace_until' => null, 'last_event' => 'PAYMENT_RECOVERED' ) );
+			return array( 'status' => 'active', 'unchanged' => false );
+		}
+		return $this->revoke( $activation, 'payment_overdue', false );
 	}
 
 	public function revoke_by_id( int $activation_id, string $reason = 'manual' ) {
@@ -156,7 +170,7 @@ class Revocation_Service {
 		if ( 'revoked' === $activation->status ) {
 			return array( 'status' => 'revoked', 'activation_id' => (int) $activation->id, 'unchanged' => true );
 		}
-		if ( ! in_array( $activation->status, array( 'active', 'grace', 'canceled' ), true ) ) {
+		if ( ! in_array( $activation->status, array( 'active', 'payment_delayed', 'grace', 'refund_requested', 'review', 'canceled' ), true ) ) {
 			return new \WP_Error( 'hmp_activation_not_active', __( 'The affected activation is not active.', 'hotmart-memberpress-pro' ) );
 		}
 
@@ -193,7 +207,11 @@ class Revocation_Service {
 		if ( 'canceled' === $activation->status ) {
 			return array( 'status' => 'canceled', 'activation_id' => (int) $activation->id, 'unchanged' => true );
 		}
-		if ( 'active' !== $activation->status ) {
+		if ( empty( $activation->expires_at ) ) {
+			$result = $this->activations->update_status( (int) $activation->id, 'review', array( 'revocation_reason' => 'cancellation_missing_expiration', 'last_event' => $reason, 'last_event_at' => current_time( 'mysql', true ) ) );
+			return is_wp_error( $result ) ? $result : array( 'status' => 'review', 'activation_id' => (int) $activation->id );
+		}
+		if ( ! in_array( $activation->status, array( 'active', 'payment_delayed', 'grace', 'refund_requested' ), true ) ) {
 			return new \WP_Error( 'hmp_activation_not_active', __( 'The affected activation is not active.', 'hotmart-memberpress-pro' ) );
 		}
 

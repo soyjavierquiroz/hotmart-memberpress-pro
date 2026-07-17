@@ -75,9 +75,26 @@ class Activation_Repository {
 		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$this->table} WHERE hotmart_subscription=%s AND membership_id=%d ORDER BY (expires_at IS NULL) ASC, expires_at DESC, starts_at DESC, id DESC LIMIT 1", $subscription, $membership_id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 	}
 
-	public function find_grace_expired( int $limit = 100 ): array {
+	public function find_grace_expired( int $limit = 50 ): array {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$this->table} WHERE status='grace' AND grace_until IS NOT NULL AND grace_until <= %s ORDER BY grace_until ASC LIMIT %d", current_time( 'mysql', true ), min( 100, max( 1, $limit ) ) ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$this->table} WHERE status='grace' AND grace_until IS NOT NULL AND grace_until <= %s ORDER BY grace_until ASC LIMIT %d", current_time( 'mysql', true ), min( 50, max( 1, $limit ) ) ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+	}
+
+	public function has_later_paid_activation( object $activation ): bool {
+		global $wpdb;
+		if ( empty( $activation->hotmart_subscription ) ) return false;
+		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$this->table} WHERE hotmart_subscription=%s AND membership_id=%d AND id>%d AND status IN ('active','canceled','refund_requested') AND last_event IN ('PURCHASE_APPROVED','PURCHASE_COMPLETE') LIMIT 1", $activation->hotmart_subscription, $activation->membership_id, $activation->id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+	}
+
+	public function clear_pending_for_subscription( string $subscription, int $membership_id, int $except_id ): void {
+		global $wpdb;
+		$wpdb->query( $wpdb->prepare( "UPDATE {$this->table} SET status='active',grace_until=NULL,last_event='PAYMENT_RECOVERED',last_event_at=%s,updated_at=%s WHERE hotmart_subscription=%s AND membership_id=%d AND id<>%d AND status IN ('payment_delayed','grace')", current_time( 'mysql', true ), current_time( 'mysql', true ), $subscription, $membership_id, $except_id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+	}
+
+	public function operational_counts(): array {
+		global $wpdb; $counts = array( 'payment_delayed'=>0, 'grace'=>0, 'refund_requested'=>0, 'review'=>0 );
+		foreach ( $wpdb->get_results( "SELECT status,COUNT(*) total FROM {$this->table} WHERE status IN ('payment_delayed','grace','refund_requested','review') GROUP BY status" ) as $row ) $counts[$row->status]=(int)$row->total; // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		return $counts;
 	}
 
 	public function count_status( string $status ): int {

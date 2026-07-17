@@ -40,7 +40,7 @@ class MemberPress_Service {
 		$subscription = sanitize_text_field( (string) ( $payload['subscription'] ?? '' ) );
 		if ( '' !== $subscription ) {
 			$latest = $this->activations->find_latest_for_renewal( $subscription, (int) $mapping->membership_id );
-			if ( $latest && 'canceled' === $latest->status && $latest->hotmart_transaction !== $transaction ) {
+			if ( $latest && in_array( $latest->status, array( 'canceled', 'review' ), true ) && $latest->hotmart_transaction !== $transaction ) {
 				return new \WP_Error( 'hmp_subscription_canceled', __( 'This Hotmart subscription was canceled and cannot create future renewals.', 'hotmart-memberpress-pro' ) );
 			}
 		}
@@ -190,7 +190,7 @@ class MemberPress_Service {
 			return $this->activations->update_status( (int) $existing->id, 'active', $data );
 		}
 
-		return $this->activations->insert(
+		$result = $this->activations->insert(
 			array_merge(
 				$data,
 				array(
@@ -205,5 +205,7 @@ class MemberPress_Service {
 				)
 			)
 		);
+		if ( ! is_wp_error( $result ) && ! empty( $payload['subscription'] ) ) $this->activations->clear_pending_for_subscription( (string) $payload['subscription'], (int) $mapping->membership_id, (int) $result );
+		return $result;
 	}
 }
