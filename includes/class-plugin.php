@@ -34,6 +34,7 @@ final class Plugin {
 		}
 		$this->started = true;
 
+		Upgrader::register();
 		Activator::maybe_upgrade();
 		Settings::register();
 

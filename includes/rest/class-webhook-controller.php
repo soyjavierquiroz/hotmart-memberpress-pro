@@ -82,6 +82,7 @@ class Webhook_Controller {
 				'subscription_code' => $normalized['subscription'],
 				'buyer_email'       => $normalized['buyer_email'],
 				'payload'           => $encoded,
+				'source'            => 'HMP_DIAGNOSTIC' === $normalized['event'] ? 'diagnostic' : 'webhook',
 			)
 		);
 		if ( is_wp_error( $event_id ) ) {

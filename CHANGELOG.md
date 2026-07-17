@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1
+
+- Automatically applies schema 0.3.0 from the WordPress web runtime without reactivation or WP-CLI.
+- Adds locked, idempotent migration verification and safe administrative recovery.
+- Adds PHP web environment and internal REST endpoint diagnostics.
+
 ## 0.3.0
 
 - Reliable multi-period renewals and subscription cancellation.

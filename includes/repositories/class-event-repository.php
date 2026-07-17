@@ -173,6 +173,12 @@ class Event_Repository {
 		return $wpdb->get_col( "SELECT DISTINCT hotmart_event FROM {$this->table} WHERE hotmart_event <> '' ORDER BY hotmart_event ASC" );
 	}
 
+	public function delete_diagnostics(): int {
+		global $wpdb;
+		$result = $wpdb->query( $wpdb->prepare( "DELETE FROM {$this->table} WHERE hotmart_event = %s AND source = %s", 'HMP_DIAGNOSTIC', 'diagnostic' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		return false === $result ? 0 : (int) $result;
+	}
+
 	public function retryable( int $limit = 20 ): array {
 		global $wpdb;
 		$codes = array( 'hmp_memberpress_unavailable', 'hmp_memberpress_transaction_failed', 'hmp_database_error' );
