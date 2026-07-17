@@ -24,6 +24,7 @@ final class Activator {
 				status varchar(30) NOT NULL,
 				attempts smallint(5) unsigned NOT NULL DEFAULT 0,
 				result_message text NULL,
+				error_code varchar(100) NULL,
 				source varchar(30) NOT NULL DEFAULT 'webhook',
 				received_at datetime NOT NULL,
 				processed_at datetime NULL,
@@ -56,6 +57,12 @@ final class Activator {
 				manual_action varchar(30) NULL,
 				manual_action_at datetime NULL,
 				manual_action_result text NULL,
+				grace_until datetime NULL,
+				last_event varchar(100) NULL,
+				last_event_at datetime NULL,
+				source varchar(30) NOT NULL DEFAULT 'webhook',
+				manual_admin_id bigint(20) unsigned NULL,
+				manual_reason text NULL,
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (id),
@@ -98,6 +105,7 @@ final class Activator {
 		update_option( 'hmp_db_version', HMP_VERSION );
 		Settings::add_defaults();
 		Cleanup::schedule();
+		Lifecycle::schedule();
 	}
 
 	public static function maybe_upgrade(): void {
@@ -108,5 +116,6 @@ final class Activator {
 
 	public static function deactivate(): void {
 		Cleanup::unschedule();
+		Lifecycle::unschedule();
 	}
 }

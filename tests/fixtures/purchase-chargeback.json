@@ -1,0 +1,1 @@
+{"id":"evt-chargeback","event":"PURCHASE_CHARGEBACK","data":{"purchase":{"transaction":"TEST-002"},"subscription":{"subscriber":{"code":"SUB-TEST"}}}}

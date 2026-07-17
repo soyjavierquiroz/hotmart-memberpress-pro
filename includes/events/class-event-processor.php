@@ -33,6 +33,15 @@ class Event_Processor {
 			'PURCHASE_EXPIRED',
 			'SUBSCRIPTION_CANCELLATION',
 		);
+		$grace_events = array( 'PURCHASE_DELAYED', 'PURCHASE_OVERDUE' );
+		if ( in_array( $event, $grace_events, true ) ) {
+			$result = $this->revocations->start_grace( $payload, $event );
+			return $this->finish( $event_id, $result, __( 'Subscription placed in grace period.', 'hotmart-memberpress-pro' ) );
+		}
+		if ( 'PURCHASE_REFUND_REQUESTED' === $event ) {
+			$result = $this->revocations->refund_requested( $payload, $event );
+			return $this->finish( $event_id, $result, __( 'Refund request recorded without revoking access.', 'hotmart-memberpress-pro' ) );
+		}
 
 		if ( ! in_array( $event, array_merge( $grant_events, $revoke_events ), true ) ) {
 			$message = sprintf(
@@ -48,13 +57,22 @@ class Event_Processor {
 			? $this->memberpress->grant_access( $payload )
 			: $this->revocations->handle_event( $event, $payload );
 		if ( is_wp_error( $result ) ) {
-			$this->events->update_status( $event_id, 'failed', $result->get_error_message() );
+			$this->events->update_status( $event_id, 'failed', $result->get_error_message(), $result->get_error_code() );
 			return $result;
 		}
 
 		$message = in_array( $event, $grant_events, true )
 			? __( 'MemberPress access granted.', 'hotmart-memberpress-pro' )
 			: __( 'Membership lifecycle updated.', 'hotmart-memberpress-pro' );
+		$this->events->update_status( $event_id, 'processed', $message );
+		return $result;
+	}
+
+	private function finish( int $event_id, $result, string $message ) {
+		if ( is_wp_error( $result ) ) {
+			$this->events->update_status( $event_id, 'failed', $result->get_error_message(), $result->get_error_code() );
+			return $result;
+		}
 		$this->events->update_status( $event_id, 'processed', $message );
 		return $result;
 	}

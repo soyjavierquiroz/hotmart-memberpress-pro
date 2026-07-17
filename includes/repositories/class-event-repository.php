@@ -23,6 +23,7 @@ class Event_Repository {
 			'status'           => 'received',
 			'attempts'         => 0,
 			'result_message'   => null,
+			'error_code'       => null,
 			'source'           => 'webhook',
 			'received_at'      => $now,
 			'processed_at'     => null,
@@ -55,11 +56,12 @@ class Event_Repository {
 		return null !== $this->find_by_event_key( $event_key );
 	}
 
-	public function update_status( int $id, string $status, string $message = '' ) {
+	public function update_status( int $id, string $status, string $message = '', ?string $error_code = null ) {
 		global $wpdb;
 		$data = array(
 			'status'         => $status,
 			'result_message' => $message,
+			'error_code'     => $error_code,
 			'updated_at'     => current_time( 'mysql', true ),
 		);
 		if ( in_array( $status, array( 'processed', 'failed', 'ignored' ), true ) ) {
@@ -169,5 +171,13 @@ class Event_Repository {
 		global $wpdb;
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		return $wpdb->get_col( "SELECT DISTINCT hotmart_event FROM {$this->table} WHERE hotmart_event <> '' ORDER BY hotmart_event ASC" );
+	}
+
+	public function retryable( int $limit = 20 ): array {
+		global $wpdb;
+		$codes = array( 'hmp_memberpress_unavailable', 'hmp_memberpress_transaction_failed', 'hmp_database_error' );
+		$marks = implode( ',', array_fill( 0, count( $codes ), '%s' ) );
+		$values = array_merge( $codes, array( min( 20, max( 1, $limit ) ) ) );
+		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$this->table} WHERE status='failed' AND attempts < 3 AND error_code IN ($marks) ORDER BY updated_at ASC LIMIT %d", $values ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 	}
 }

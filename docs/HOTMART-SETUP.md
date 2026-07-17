@@ -1,5 +1,7 @@
 # Hotmart setup
 
+Select `PURCHASE_APPROVED`, `PURCHASE_COMPLETE`, `PURCHASE_REFUNDED`, `PURCHASE_CHARGEBACK`, `PURCHASE_CANCELED`, `PURCHASE_EXPIRED`, `PURCHASE_DELAYED`, `PURCHASE_REFUND_REQUESTED`, and `SUBSCRIPTION_CANCELLATION`. `PURCHASE_OVERDUE` and `PURCHASE_CANCELLED` are tolerated internally as aliases.
+
 1. Activate Hotmart MemberPress Pro.
 2. Open **Hotmart MemberPress > Settings** and save a strong HOTTOK.
 3. Open **Hotmart MemberPress > Overview** and copy the complete webhook URL.

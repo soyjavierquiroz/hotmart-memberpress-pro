@@ -1,4 +1,6 @@
-# Hotmart MemberPress Pro
+# Hotmart MemberPress Pro 0.3.0
+
+Version 0.3.0 adds safe subscription renewals, cancellation across paid periods, overdue-payment grace, limited transient retries, refund-request warnings and authenticated manual fallback tools. No OAuth or Hotmart API calls are used.
 
 WordPress plugin that securely receives Hotmart webhooks and grants MemberPress
 membership access.

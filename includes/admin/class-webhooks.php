@@ -50,10 +50,10 @@ class Webhooks {
 				<?php submit_button( __( 'Filter', 'hotmart-memberpress-pro' ), 'secondary', '', false ); ?>
 			</form>
 			<p><?php echo esc_html( sprintf( __( '%d events found.', 'hotmart-memberpress-pro' ), $total ) ); ?></p>
-			<table class="widefat striped"><thead><tr><th><?php esc_html_e( 'Date', 'hotmart-memberpress-pro' ); ?></th><th><?php esc_html_e( 'Event', 'hotmart-memberpress-pro' ); ?></th><th><?php esc_html_e( 'Transaction', 'hotmart-memberpress-pro' ); ?></th><th><?php esc_html_e( 'Subscription', 'hotmart-memberpress-pro' ); ?></th><th><?php esc_html_e( 'Email', 'hotmart-memberpress-pro' ); ?></th><th><?php esc_html_e( 'Status', 'hotmart-memberpress-pro' ); ?></th><th><?php esc_html_e( 'Attempts', 'hotmart-memberpress-pro' ); ?></th><th><?php esc_html_e( 'Message', 'hotmart-memberpress-pro' ); ?></th><th><?php esc_html_e( 'Actions', 'hotmart-memberpress-pro' ); ?></th></tr></thead><tbody>
+			<table class="widefat striped"><thead><tr><th><?php esc_html_e( 'Date', 'hotmart-memberpress-pro' ); ?></th><th><?php esc_html_e( 'Event', 'hotmart-memberpress-pro' ); ?></th><th><?php esc_html_e( 'Source', 'hotmart-memberpress-pro' ); ?></th><th><?php esc_html_e( 'Transaction', 'hotmart-memberpress-pro' ); ?></th><th><?php esc_html_e( 'Subscription', 'hotmart-memberpress-pro' ); ?></th><th><?php esc_html_e( 'Email', 'hotmart-memberpress-pro' ); ?></th><th><?php esc_html_e( 'Status', 'hotmart-memberpress-pro' ); ?></th><th><?php esc_html_e( 'Error code', 'hotmart-memberpress-pro' ); ?></th><th><?php esc_html_e( 'Attempts', 'hotmart-memberpress-pro' ); ?></th><th><?php esc_html_e( 'Message', 'hotmart-memberpress-pro' ); ?></th><th><?php esc_html_e( 'Actions', 'hotmart-memberpress-pro' ); ?></th></tr></thead><tbody>
 			<?php if ( empty( $rows ) ) : ?><tr><td colspan="9"><?php esc_html_e( 'No webhook events match the filters.', 'hotmart-memberpress-pro' ); ?></td></tr><?php endif; ?>
 			<?php foreach ( $rows as $row ) : ?>
-				<tr><td><?php echo esc_html( $row->received_at ); ?></td><td><?php echo esc_html( $row->hotmart_event ); ?></td><td><?php echo esc_html( $row->transaction_code ?: '—' ); ?></td><td><?php echo esc_html( $row->subscription_code ?: '—' ); ?></td><td><?php echo esc_html( $row->buyer_email ?: '—' ); ?></td><td><?php echo esc_html( $this->status_label( $row->status ) ); ?></td><td><?php echo esc_html( $row->attempts ); ?></td><td><?php echo esc_html( $row->result_message ?: '—' ); ?></td><td>
+				<tr><td><?php echo esc_html( $row->received_at ); ?></td><td><?php echo esc_html( $row->hotmart_event ); ?></td><td><?php echo esc_html( $row->source ); ?></td><td><?php echo esc_html( $row->transaction_code ?: '—' ); ?></td><td><?php echo esc_html( $row->subscription_code ?: '—' ); ?></td><td><?php echo esc_html( $row->buyer_email ?: '—' ); ?></td><td><?php echo esc_html( $this->status_label( $row->status ) ); ?></td><td><?php echo esc_html( $row->error_code ?: '—' ); ?></td><td><?php echo esc_html( $row->attempts ); ?><?php echo 'failed' === $row->status && $row->attempts < 3 ? ' · retryable' : ''; ?></td><td><?php echo esc_html( $row->result_message ?: '—' ); ?></td><td>
 					<a href="<?php echo esc_url( add_query_arg( array( 'page' => 'hotmart-memberpress-pro-webhooks', 'view_event' => $row->id ), admin_url( 'admin.php' ) ) ); ?>"><?php esc_html_e( 'View payload', 'hotmart-memberpress-pro' ); ?></a>
 					<?php if ( 'failed' === $row->status ) : ?> | <a href="<?php echo esc_url( wp_nonce_url( add_query_arg( array( 'action' => 'hmp_reprocess_event', 'event_id' => $row->id ), admin_url( 'admin-post.php' ) ), 'hmp_reprocess_event_' . $row->id ) ); ?>"><?php esc_html_e( 'Reprocess', 'hotmart-memberpress-pro' ); ?></a><?php endif; ?>
 					<?php if ( 'ignored' !== $row->status ) : ?> | <a href="<?php echo esc_url( wp_nonce_url( add_query_arg( array( 'action' => 'hmp_ignore_event', 'event_id' => $row->id ), admin_url( 'admin-post.php' ) ), 'hmp_ignore_event_' . $row->id ) ); ?>"><?php esc_html_e( 'Mark ignored', 'hotmart-memberpress-pro' ); ?></a><?php endif; ?>
@@ -101,10 +101,20 @@ class Webhooks {
 			wp_die( esc_html__( 'Event not found.', 'hotmart-memberpress-pro' ) );
 		}
 		$decoded = json_decode( $event->payload, true );
+		if ( is_array( $decoded ) ) { $decoded = $this->redact( $decoded ); }
 		$pretty  = is_array( $decoded ) ? wp_json_encode( $decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) : $event->payload;
 		?>
 		<div class="wrap"><h1><?php esc_html_e( 'Webhook payload', 'hotmart-memberpress-pro' ); ?></h1><p><a href="<?php echo esc_url( admin_url( 'admin.php?page=hotmart-memberpress-pro-webhooks' ) ); ?>">&larr; <?php esc_html_e( 'Back to webhooks', 'hotmart-memberpress-pro' ); ?></a></p><pre style="white-space:pre-wrap;background:#fff;padding:16px;border:1px solid #ccd0d4"><?php echo esc_html( $pretty ); ?></pre></div>
 		<?php
+	}
+
+	private function redact( array $data ): array {
+		$sensitive = array( 'document', 'documents', 'phone', 'telephone', 'address', 'bank', 'bank_account', 'routing_number', 'hottok' );
+		foreach ( $data as $key => $value ) {
+			if ( in_array( strtolower( (string) $key ), $sensitive, true ) ) $data[$key] = '[REDACTED]';
+			elseif ( is_array( $value ) ) $data[$key] = $this->redact( $value );
+		}
+		return $data;
 	}
 
 	private function manual_message( string $message ): string {

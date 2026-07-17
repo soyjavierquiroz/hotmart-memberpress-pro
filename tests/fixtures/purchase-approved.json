@@ -1,0 +1,1 @@
+{"id":"evt-approved","event":"PURCHASE_APPROVED","data":{"purchase":{"transaction":"TEST-001","approved_date":1704067200000,"price":{"value":49}},"subscription":{"subscriber":{"code":"SUB-TEST"},"date_next_charge":1706745600000},"buyer":{"email":"buyer@example.test"},"product":{"id":123}}}

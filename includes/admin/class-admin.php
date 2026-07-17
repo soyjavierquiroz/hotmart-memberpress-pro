@@ -18,6 +18,7 @@ class Admin {
 	private Mappings $mappings_page;
 	private Webhooks $webhooks_page;
 	private Activations $activations_page;
+	private Tools $tools_page;
 
 	public function __construct(
 		Event_Repository $events,
@@ -31,6 +32,7 @@ class Admin {
 		$this->mappings_page   = new Mappings( $mappings );
 		$this->webhooks_page   = new Webhooks( $events, $processor, $normalizer );
 		$this->activations_page = new Activations( $activations, $revocations );
+		$this->tools_page = new Tools( $events, $mappings, $activations, $processor, $normalizer, $revocations );
 	}
 
 	public function register(): void {
@@ -38,6 +40,7 @@ class Admin {
 		$this->mappings_page->register();
 		$this->webhooks_page->register();
 		$this->activations_page->register();
+		$this->tools_page->register();
 	}
 
 	public function menu(): void {
@@ -53,6 +56,7 @@ class Admin {
 		add_submenu_page( 'hotmart-memberpress-pro', __( 'Mappings', 'hotmart-memberpress-pro' ), __( 'Mappings', 'hotmart-memberpress-pro' ), 'manage_options', 'hotmart-memberpress-pro-mappings', array( $this->mappings_page, 'render' ) );
 		add_submenu_page( 'hotmart-memberpress-pro', __( 'Webhooks', 'hotmart-memberpress-pro' ), __( 'Webhooks', 'hotmart-memberpress-pro' ), 'manage_options', 'hotmart-memberpress-pro-webhooks', array( $this->webhooks_page, 'render' ) );
 		add_submenu_page( 'hotmart-memberpress-pro', __( 'Activations', 'hotmart-memberpress-pro' ), __( 'Activations', 'hotmart-memberpress-pro' ), 'manage_options', 'hotmart-memberpress-pro-activations', array( $this->activations_page, 'render' ) );
+		add_submenu_page( 'hotmart-memberpress-pro', __( 'Tools', 'hotmart-memberpress-pro' ), __( 'Tools', 'hotmart-memberpress-pro' ), 'manage_options', 'hotmart-memberpress-pro-tools', array( $this->tools_page, 'render' ) );
 		add_submenu_page( 'hotmart-memberpress-pro', __( 'Settings', 'hotmart-memberpress-pro' ), __( 'Settings', 'hotmart-memberpress-pro' ), 'manage_options', 'hotmart-memberpress-pro-settings', array( $this, 'settings' ) );
 	}
 

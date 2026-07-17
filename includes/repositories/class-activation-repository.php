@@ -67,7 +67,22 @@ class Activation_Repository {
 			return null;
 		}
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
-		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$this->table} WHERE hotmart_subscription = %s ORDER BY id DESC LIMIT 1", $subscription ) );
+		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$this->table} WHERE hotmart_subscription = %s ORDER BY (expires_at IS NULL) ASC, expires_at DESC, starts_at DESC, id DESC LIMIT 1", $subscription ) );
+	}
+
+	public function find_latest_for_renewal( string $subscription, int $membership_id ): ?object {
+		global $wpdb;
+		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$this->table} WHERE hotmart_subscription=%s AND membership_id=%d ORDER BY (expires_at IS NULL) ASC, expires_at DESC, starts_at DESC, id DESC LIMIT 1", $subscription, $membership_id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+	}
+
+	public function find_grace_expired( int $limit = 100 ): array {
+		global $wpdb;
+		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$this->table} WHERE status='grace' AND grace_until IS NOT NULL AND grace_until <= %s ORDER BY grace_until ASC LIMIT %d", current_time( 'mysql', true ), min( 100, max( 1, $limit ) ) ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+	}
+
+	public function count_status( string $status ): int {
+		global $wpdb;
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$this->table} WHERE status=%s", $status ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 	}
 
 	public function exists( string $transaction, int $membership_id ): bool {
@@ -95,7 +110,8 @@ class Activation_Repository {
 		}
 		if ( $args['search'] ) {
 			$like     = '%' . $wpdb->esc_like( $args['search'] ) . '%';
-			$where[]  = '(hotmart_transaction LIKE %s OR hotmart_subscription LIKE %s)';
+			$where[]  = '(hotmart_transaction LIKE %s OR hotmart_subscription LIKE %s OR user_id IN (SELECT ID FROM ' . $wpdb->users . ' WHERE user_email LIKE %s))';
+			$values[] = $like;
 			$values[] = $like;
 			$values[] = $like;
 		}
@@ -117,7 +133,8 @@ class Activation_Repository {
 		}
 		if ( $args['search'] ) {
 			$like     = '%' . $wpdb->esc_like( $args['search'] ) . '%';
-			$where[]  = '(hotmart_transaction LIKE %s OR hotmart_subscription LIKE %s)';
+			$where[]  = '(hotmart_transaction LIKE %s OR hotmart_subscription LIKE %s OR user_id IN (SELECT ID FROM ' . $wpdb->users . ' WHERE user_email LIKE %s))';
+			$values[] = $like;
 			$values[] = $like;
 			$values[] = $like;
 		}

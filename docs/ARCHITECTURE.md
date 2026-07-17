@@ -1,5 +1,7 @@
 # Architecture
 
+Version 0.3.0 keeps one activation per Hotmart transaction and derives subscription state from ordered activations. Refunds target one transaction; cancellation marks only the latest period. Native WP-Cron handles hourly grace expiration and 15-minute transient retries.
+
 The main plugin file defines constants, registers lifecycle hooks and starts `HMP\Plugin`
 on `plugins_loaded`. The custom autoloader maps the `HMP` namespace to `includes/`.
 

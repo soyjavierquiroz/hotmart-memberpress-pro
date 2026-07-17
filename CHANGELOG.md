@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0
+
+- Reliable multi-period renewals and subscription cancellation.
+- Grace periods, hourly expiration, limited retries and refund-request tracking.
+- Diagnostics and authenticated manual fallback tools.
+
 ## 0.2.0
 
 - Added complete Hotmart to MemberPress mapping administration.

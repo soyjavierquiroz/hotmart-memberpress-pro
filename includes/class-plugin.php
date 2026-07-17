@@ -55,5 +55,6 @@ final class Plugin {
 		$controller->register();
 		( new Admin( $events, $mappings, $activations, $processor, $normalizer, $revocations ) )->register();
 		Cleanup::register();
+		Lifecycle::register( $events, $activations, $processor, $revocations );
 	}
 }

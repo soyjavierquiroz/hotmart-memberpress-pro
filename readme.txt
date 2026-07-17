@@ -4,11 +4,13 @@ Tags: hotmart, memberpress, webhook, membership
 Requires at least: 6.0
 Tested up to: 6.8
 Requires PHP: 8.1
-Stable tag: 0.2.0
+Stable tag: 0.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 Securely receives Hotmart webhooks and grants MemberPress access for approved purchases.
+
+Version 0.3.0 adds reliable renewals, grace periods, retries, refund-request tracking and manual fallback tools.
 
 == Description ==
 

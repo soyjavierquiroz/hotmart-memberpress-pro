@@ -39,7 +39,7 @@ class MemberPress_Service {
 
 		$subscription = sanitize_text_field( (string) ( $payload['subscription'] ?? '' ) );
 		if ( '' !== $subscription ) {
-			$latest = $this->activations->find_latest_by_subscription( $subscription );
+			$latest = $this->activations->find_latest_for_renewal( $subscription, (int) $mapping->membership_id );
 			if ( $latest && 'canceled' === $latest->status && $latest->hotmart_transaction !== $transaction ) {
 				return new \WP_Error( 'hmp_subscription_canceled', __( 'This Hotmart subscription was canceled and cannot create future renewals.', 'hotmart-memberpress-pro' ) );
 			}
@@ -66,8 +66,14 @@ class MemberPress_Service {
 			);
 		}
 
-		$created_at = $this->mysql_date( $payload['approved_date'] ?? $payload['order_date'] ?? null ) ?: current_time( 'mysql', true );
-		$expires_at = $this->expires_at( $mapping, $created_at );
+		$approved_at = $this->mysql_date( $payload['approved_date'] ?? $payload['order_date'] ?? null ) ?: current_time( 'mysql', true );
+		$created_at  = $approved_at;
+		$latest      = '' !== $subscription ? $this->activations->find_latest_for_renewal( $subscription, (int) $mapping->membership_id ) : null;
+		if ( $latest && ! in_array( $latest->status, array( 'revoked', 'canceled' ), true ) && $latest->expires_at && strtotime( $latest->expires_at ) > strtotime( $created_at ) ) {
+			$created_at = $latest->expires_at;
+		}
+		$next_charge = $this->mysql_date( $payload['next_charge_date'] ?? null );
+		$expires_at  = $next_charge && strtotime( $next_charge ) > strtotime( $created_at ) ? $next_charge : $this->expires_at( $mapping, $created_at );
 		$amount     = is_numeric( $payload['price'] ?? null ) ? (float) $payload['price'] : 0.0;
 
 		try {
@@ -176,6 +182,9 @@ class MemberPress_Service {
 			'status'                     => 'active',
 			'starts_at'                  => $starts_at,
 			'expires_at'                 => $expires_at,
+			'grace_until'                => null,
+			'last_event'                 => sanitize_text_field( (string) ( $payload['event'] ?? 'PURCHASE_APPROVED' ) ),
+			'last_event_at'              => current_time( 'mysql', true ),
 		);
 		if ( $existing ) {
 			return $this->activations->update_status( (int) $existing->id, 'active', $data );

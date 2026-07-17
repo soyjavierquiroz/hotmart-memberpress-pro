@@ -1,0 +1,1 @@
+{"id":"evt-renewal","event":"PURCHASE_APPROVED","data":{"purchase":{"transaction":"TEST-002"},"subscription":{"subscriber":{"code":"SUB-TEST"}},"buyer":{"email":"buyer@example.test"},"product":{"id":123}}}
